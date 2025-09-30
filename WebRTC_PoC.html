@@ -1,0 +1,97 @@
+<!-- This is a bare-minimum prototype to demonstrate a WebRTC Data Channel.
+It is based on the official PeerJS "P2P File Transfer" example. https://github.com/chidokun/p2p-file-transfer
+The goal is to establish a direct P2P link between two browser tabs. -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple WebRTC PoC</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+  <h1>My Peer ID: <span id="my-id">...</span></h1>
+
+  <hr>
+
+  <h3>Connect to a Friend</h3>
+  <input type="text" id="destination-id" placeholder="Enter friend's ID here">
+  <button id="connect-btn">Connect</button>
+
+  <hr>
+
+  <h3>Send a Message</h3>
+  <input type="text" id="message-input" placeholder="Type message...">
+  <button id="send-btn">Send</button>
+
+  <hr>
+
+  <h3>Messages</h3>
+  <div id="messages"></div>
+
+  <script>
+
+    let peer = null;
+    let currentConnection = null;
+
+    const myIdEl = document.getElementById('my-id');
+    const destinationIdInput = document.getElementById('destination-id');
+    const connectBtn = document.getElementById('connect-btn');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const messagesEl = document.getElementById('messages');
+
+    peer = new Peer();
+
+    peer.on('open', (id) => {
+      console.log('My Peer ID is:', id);
+      myIdEl.textContent = id;
+    });
+
+    peer.on('connection', (connection) => {
+      console.log('Someone connected to us!');
+      currentConnection = connection;
+      setupConnectionEvents(currentConnection);
+    });
+
+    connectBtn.addEventListener('click', () => {
+      const destinationId = destinationIdInput.value;
+      console.log('Attempting to connect to:', destinationId);
+
+      currentConnection = peer.connect(destinationId);
+
+      setupConnectionEvents(currentConnection);
+    });
+
+    function setupConnectionEvents(connection) {
+      connection.on('open', () => {
+        console.log('Connection is open and ready to send/receive data.');
+      });
+
+      connection.on('data', (data) => {
+        console.log('Received data:', data);
+        messagesEl.innerHTML += `<p>Friend: ${data}</p>`;
+      });
+    }
+
+    sendBtn.addEventListener('click', () => {
+      const message = messageInput.value;
+
+      if (currentConnection && currentConnection.open) {
+        console.log('Sending message:', message);
+        currentConnection.send(message);
+        messagesEl.innerHTML += `<p>You: ${message}</p>`;
+        messageInput.value = '';
+      } else {
+        console.log('Cannot send message. Connection is not open.');
+      }
+    });
+
+    peer.on('error', (err) => {
+        console.error('An error occurred with PeerJS: ', err);
+    });
+
+  </script>
+
+</body>
+</html>

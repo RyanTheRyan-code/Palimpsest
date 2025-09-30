@@ -1,0 +1,132 @@
+<!-- This is a bare-minimum prototype to demonstrate steganography.
+The goal is to hide a message in an image and get it back out.
+This is based on multiple GeeksforGeeks articles, including:
+https://www.geeksforgeeks.org/computer-graphics/lsb-based-image-steganography-using-matlab/
+https://www.geeksforgeeks.org/computer-networks/image-steganography-in-cryptography/
+https://www.geeksforgeeks.org/python/image-based-steganography-using-python/
+and the ctf handbook: https://ctf101.org/forensics/what-is-stegonagraphy/ -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Steganography PoC</title>
+</head>
+<body>
+
+    <h3>1. Pick a PNG Image</h3>
+    <input type="file" id="image-input" accept="image/png">
+
+    <h3>2. Write a Secret Message</h3>
+    <input type="text" id="message-input" placeholder="Your secret message...">
+
+    <br><br>
+
+    <button id="encode-btn">Encode</button>
+    <button id="decode-btn">Decode</button>
+
+    <hr>
+
+    <h3>Image Canvas:</h3>
+    <canvas id="main-canvas"></canvas>
+
+    <h3>Decoded Message:</h3>
+    <p id="decoded-message">...</p>
+
+    <script>
+
+        const imageInput = document.getElementById('image-input');
+        const messageInput = document.getElementById('message-input');
+        const encodeBtn = document.getElementById('encode-btn');
+        const decodeBtn = document.getElementById('decode-btn');
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        const decodedMessageEl = document.getElementById('decoded-message');
+
+        const MESSAGE_TERMINATOR = "|||";
+
+        imageInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (fileEvent) => {
+                const image = new Image();
+                image.onload = () => {
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    ctx.drawImage(image, 0, 0);
+                };
+                image.src = fileEvent.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        encodeBtn.addEventListener('click', () => {
+            const message = messageInput.value + MESSAGE_TERMINATOR;
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelData = imageData.data;
+
+            let messageInBinary = '';
+            for (let i = 0; i < message.length; i++) {
+                const binaryChar = message[i].charCodeAt(0).toString(2).padStart(8, '0');
+                messageInBinary += binaryChar;
+            }
+
+            let dataIndex = 0;
+            for (let i = 0; i < messageInBinary.length; i++) {
+                if ((dataIndex + 1) % 4 === 0) {
+                    dataIndex++;
+                }
+
+                const bit = parseInt(messageInBinary[i]);
+                if (bit === 1 && pixelData[dataIndex] % 2 === 0) {
+                    pixelData[dataIndex]++;
+                } else if (bit === 0 && pixelData[dataIndex] % 2 !== 0) {
+                    pixelData[dataIndex]--;
+                }
+                dataIndex++;
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            alert('Message encoded! The image on the canvas now contains your secret.');
+        });
+
+
+        decodeBtn.addEventListener('click', () => {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixelData = imageData.data;
+
+            let extractedBinary = '';
+
+            for (let i = 0; i < pixelData.length; i++) {
+                if ((i + 1) % 4 === 0) continue;
+                
+                const lsb = pixelData[i] % 2;
+                extractedBinary += lsb.toString();
+
+                if (extractedBinary.length % 8 === 0) {
+                    const lastChars = extractedBinary.slice(-(MESSAGE_TERMINATOR.length * 8));
+                    let potentialTerminator = '';
+                    for (let j = 0; j < lastChars.length; j += 8) {
+                        const byte = lastChars.substring(j, j + 8);
+                        potentialTerminator += String.fromCharCode(parseInt(byte, 2));
+                    }
+                    if (potentialTerminator.endsWith(MESSAGE_TERMINATOR)) {
+                        break;
+                    }
+                }
+            }
+
+            let decodedText = '';
+            for (let i = 0; i < extractedBinary.length; i += 8) {
+                const byte = extractedBinary.substring(i, i + 8);
+                if (byte.length < 8) continue;
+                decodedText += String.fromCharCode(parseInt(byte, 2));
+            }
+
+            decodedMessageEl.textContent = decodedText.substring(0, decodedText.length - MESSAGE_TERMINATOR.length);
+        });
+
+    </script>
+</body>
+</html>
