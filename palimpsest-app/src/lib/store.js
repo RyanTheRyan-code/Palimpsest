@@ -1,19 +1,34 @@
 import { writable } from 'svelte/store';
 
-// This file holds all the application's shared data.
-// Any component can import these stores to get or update the app's state.
-
-// 'connecting', 'composing', or 'received'
 export const appState = writable('connecting');
 
-// WebRTC connection status and IDs
-export const yourPeerId = writable('generating...');
+export const connectionStatus = writable('disconnected');
+export const yourPeerId = writable('');
 export const friendPeerId = writable('');
-export const connectionStatus = writable('disconnected'); // 'connecting', 'connected'
 
-// Message data
+export const messages = writable([]);
+
 export const secretMessage = writable('');
 export const carrierImageFile = writable(null);
-export const receivedImageURL = writable('https://placehold.co/600x400/232323/FFF?text=Carrier+Image');
-export const decodedMessage = writable('This is the secret message that was hidden inside.');
 
+export const receivedImageURL = writable(null);
+export const decodedMessage = writable('');
+
+/**
+ * Helper adds a message to volatile history
+ * @param {string} sender - 'me' or 'friend'
+ * @param {string} text - decoded text content
+ * @param {string|null} imageBlobUrl - URL to the carrier image
+ */
+export const addMessage = (sender, text, imageBlobUrl = null) => {
+  messages.update(history => [
+    ...history,
+    {
+      id: crypto.randomUUID(),
+      sender,
+      text,
+      image: imageBlobUrl,
+      timestamp: Date.now()
+    }
+  ]);
+};
