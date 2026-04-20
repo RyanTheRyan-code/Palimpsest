@@ -1,0 +1,35 @@
+name: Palimpsest CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./palimpsest-app
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: './palimpsest-app/package-lock.json'
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Run Steganography Tests
+      run: npm test -- --run
+
+    - name: Generate Coverage Report
+      run: npm run test:coverage
